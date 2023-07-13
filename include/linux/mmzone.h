@@ -1288,6 +1288,7 @@ typedef struct pglist_data {
 	struct task_struct *kswapd;	/* Protected by kswapd_lock */
 	int kswapd_order;
 	enum zone_type kswapd_highest_zoneidx;
+	gfp_t kswapd_gfp;
 
 	int kswapd_failures;		/* Number of 'reclaimed == 0' runs */
 
