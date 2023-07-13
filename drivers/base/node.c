@@ -486,6 +486,37 @@ static ssize_t node_read_meminfo(struct device *dev,
 #undef K
 static DEVICE_ATTR(meminfo, 0444, node_read_meminfo, NULL);
 
+static ssize_t node_read_movable_zone(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	int len = 0;
+	struct zone *unmovable_zone;
+	unsigned long movable_start_pfn, unmovable_end_pfn;
+	unsigned long movable_start_block_id, unmovable_end_block_id;
+
+	movable_start_pfn = NODE_DATA(dev->id)->node_zones[ZONE_MOVABLE].zone_start_pfn;
+	movable_start_block_id = pfn_to_block_id(movable_start_pfn);
+
+	if (populated_zone(&(NODE_DATA(dev->id)->node_zones[ZONE_NORMAL]))) {
+		unmovable_zone = &(NODE_DATA(dev->id)->node_zones[ZONE_NORMAL]);
+	} else {
+		unmovable_zone = &(NODE_DATA(dev->id)->node_zones[ZONE_DMA32]);
+	}
+	unmovable_end_pfn = zone_end_pfn(unmovable_zone);
+	unmovable_end_block_id = pfn_to_block_id(unmovable_end_pfn);
+
+	len = sysfs_emit_at(buf, len,
+			    "movable_zone_start_pfn %lu\n"
+				"movable_zone_start_block_id %lu\n"
+				"unmovable_zone_end_pfn %lu\n"
+				"unmovable_zone_end_block_id %lu\n",
+			    movable_start_pfn, movable_start_block_id,
+				unmovable_end_pfn, unmovable_end_block_id);
+
+	return len;
+}
+static DEVICE_ATTR(movable_zone, 0444, node_read_movable_zone, NULL);
+
 static ssize_t node_read_numastat(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
@@ -565,6 +596,7 @@ static DEVICE_ATTR(distance, 0444, node_read_distance, NULL);
 
 static struct attribute *node_dev_attrs[] = {
 	&dev_attr_meminfo.attr,
+	&dev_attr_movable_zone.attr,
 	&dev_attr_numastat.attr,
 	&dev_attr_distance.attr,
 	&dev_attr_vmstat.attr,

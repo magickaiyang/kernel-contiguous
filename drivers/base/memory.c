@@ -55,7 +55,7 @@ static inline unsigned long memory_block_id(unsigned long section_nr)
 	return section_nr / sections_per_block;
 }
 
-static inline unsigned long pfn_to_block_id(unsigned long pfn)
+unsigned long pfn_to_block_id(unsigned long pfn)
 {
 	return memory_block_id(pfn_to_section_nr(pfn));
 }
