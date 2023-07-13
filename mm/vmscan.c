@@ -7330,7 +7330,7 @@ clear_reclaim_active(pg_data_t *pgdat, int highest_zoneidx)
  * or lower is eligible for reclaim until at least one usable zone is
  * balanced.
  */
-static int balance_pgdat(pg_data_t *pgdat, int order, int highest_zoneidx)
+static int balance_pgdat(pg_data_t *pgdat, int order, int highest_zoneidx, gfp_t gfp_mask)
 {
 	int i;
 	unsigned long nr_soft_reclaimed;
@@ -7345,9 +7345,15 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int highest_zoneidx)
 		.order = order,
 		.may_unmap = 1,
 	};
+	bool is_movable = is_migrate_movable(gfp_migratetype(gfp_mask));
 
 	set_task_reclaim_state(current, &sc.reclaim_state);
-	psi_memstall_enter(&pflags, MEMSTALL_UNKNOWN);
+
+	if (is_movable)
+		psi_memstall_enter(&pflags, MEMSTALL_MOVABLE);
+	else
+		psi_memstall_enter(&pflags, MEMSTALL_UNMOVABLE);
+
 	__fs_reclaim_acquire(_THIS_IP_);
 
 	count_vm_event(PAGEOUTRUN);
@@ -7528,7 +7534,12 @@ out:
 
 	snapshot_refaults(NULL, pgdat);
 	__fs_reclaim_release(_THIS_IP_);
-	psi_memstall_leave(&pflags, MEMSTALL_UNKNOWN);
+
+	if (is_movable)
+		psi_memstall_leave(&pflags, MEMSTALL_MOVABLE);
+	else
+		psi_memstall_leave(&pflags, MEMSTALL_UNMOVABLE);
+
 	set_task_reclaim_state(current, NULL);
 
 	/*
@@ -7659,6 +7670,7 @@ static int kswapd(void *p)
 	pg_data_t *pgdat = (pg_data_t *)p;
 	struct task_struct *tsk = current;
 	const struct cpumask *cpumask = cpumask_of_node(pgdat->node_id);
+	gfp_t gfp_mask;
 
 	if (!cpumask_empty(cpumask))
 		set_cpus_allowed_ptr(tsk, cpumask);
@@ -7680,6 +7692,7 @@ static int kswapd(void *p)
 
 	WRITE_ONCE(pgdat->kswapd_order, 0);
 	WRITE_ONCE(pgdat->kswapd_highest_zoneidx, MAX_NR_ZONES);
+	WRITE_ONCE(pgdat->kswapd_gfp, 0);
 	atomic_set(&pgdat->nr_writeback_throttled, 0);
 	for ( ; ; ) {
 		bool ret;
@@ -7687,6 +7700,7 @@ static int kswapd(void *p)
 		alloc_order = reclaim_order = READ_ONCE(pgdat->kswapd_order);
 		highest_zoneidx = kswapd_highest_zoneidx(pgdat,
 							highest_zoneidx);
+		gfp_mask = READ_ONCE(pgdat->kswapd_gfp);
 
 kswapd_try_sleep:
 		kswapd_try_to_sleep(pgdat, alloc_order, reclaim_order,
@@ -7696,8 +7710,10 @@ kswapd_try_sleep:
 		alloc_order = READ_ONCE(pgdat->kswapd_order);
 		highest_zoneidx = kswapd_highest_zoneidx(pgdat,
 							highest_zoneidx);
+		gfp_mask = READ_ONCE(pgdat->kswapd_gfp);
 		WRITE_ONCE(pgdat->kswapd_order, 0);
 		WRITE_ONCE(pgdat->kswapd_highest_zoneidx, MAX_NR_ZONES);
+		WRITE_ONCE(pgdat->kswapd_gfp, 0);
 
 		ret = try_to_freeze();
 		if (kthread_should_stop())
@@ -7721,7 +7737,7 @@ kswapd_try_sleep:
 		trace_mm_vmscan_kswapd_wake(pgdat->node_id, highest_zoneidx,
 						alloc_order);
 		reclaim_order = balance_pgdat(pgdat, alloc_order,
-						highest_zoneidx);
+						highest_zoneidx, gfp_mask);
 		if (reclaim_order < alloc_order)
 			goto kswapd_try_sleep;
 	}
@@ -7758,6 +7774,8 @@ void wakeup_kswapd(struct zone *zone, gfp_t gfp_flags, int order,
 
 	if (READ_ONCE(pgdat->kswapd_order) < order)
 		WRITE_ONCE(pgdat->kswapd_order, order);
+
+	WRITE_ONCE(pgdat->kswapd_gfp, gfp_flags);
 
 	if (!waitqueue_active(&pgdat->kswapd_wait))
 		return;
