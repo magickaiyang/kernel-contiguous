@@ -131,6 +131,10 @@ static inline void psi_enqueue(struct task_struct *p, bool wakeup)
 	if (!wakeup) {
 		if (p->in_memstall)
 			set |= TSK_MEMSTALL;
+		if (p->in_memstall_movable)
+			set |= TSK_MEMSTALL_MOVABLE;
+		if (p->in_memstall_unmovable)
+			set |= TSK_MEMSTALL_UNMOVABLE;
 	} else {
 		if (p->in_iowait)
 			clear |= TSK_IOWAIT;

@@ -936,6 +936,8 @@ struct task_struct {
 #ifdef CONFIG_PSI
 	/* Stalled due to lack of memory */
 	unsigned			in_memstall:1;
+	unsigned			in_memstall_movable:1;
+	unsigned			in_memstall_unmovable:1;
 #endif
 #ifdef CONFIG_PAGE_OWNER
 	/* Used by page_owner=on to detect recursion in page tracking. */

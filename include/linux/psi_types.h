@@ -10,10 +10,18 @@
 
 #ifdef CONFIG_PSI
 
+enum psi_memstall_types {
+	MEMSTALL_MOVABLE,
+	MEMSTALL_UNMOVABLE,
+	MEMSTALL_UNKNOWN,
+};
+
 /* Tracked task states */
 enum psi_task_count {
 	NR_IOWAIT,
 	NR_MEMSTALL,
+	NR_MEMSTALL_MOVABLE,
+	NR_MEMSTALL_UNMOVABLE,
 	NR_RUNNING,
 	/*
 	 * For IO and CPU stalls the presence of running/oncpu tasks
@@ -25,12 +33,14 @@ enum psi_task_count {
 	 * threads and memstall ones.
 	 */
 	NR_MEMSTALL_RUNNING,
-	NR_PSI_TASK_COUNTS = 4,
+	NR_PSI_TASK_COUNTS = 6,
 };
 
 /* Task state bitmasks */
 #define TSK_IOWAIT	(1 << NR_IOWAIT)
 #define TSK_MEMSTALL	(1 << NR_MEMSTALL)
+#define TSK_MEMSTALL_MOVABLE   (1 << NR_MEMSTALL_MOVABLE)
+#define TSK_MEMSTALL_UNMOVABLE (1 << NR_MEMSTALL_UNMOVABLE)
 #define TSK_RUNNING	(1 << NR_RUNNING)
 #define TSK_MEMSTALL_RUNNING	(1 << NR_MEMSTALL_RUNNING)
 
@@ -41,6 +51,8 @@ enum psi_task_count {
 enum psi_res {
 	PSI_IO,
 	PSI_MEM,
+	PSI_MEM_MOVABLE,
+	PSI_MEM_UNMOVABLE,
 	PSI_CPU,
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
 	PSI_IRQ,
@@ -59,6 +71,10 @@ enum psi_states {
 	PSI_IO_FULL,
 	PSI_MEM_SOME,
 	PSI_MEM_FULL,
+	PSI_MEM_MOVABLE_SOME,
+	PSI_MEM_MOVABLE_FULL,
+	PSI_MEM_UNMOVABLE_SOME,
+	PSI_MEM_UNMOVABLE_FULL,
 	PSI_CPU_SOME,
 	PSI_CPU_FULL,
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING

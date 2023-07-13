@@ -231,6 +231,16 @@ static bool test_state(unsigned int *tasks, enum psi_states state, bool oncpu)
 	case PSI_MEM_FULL:
 		return unlikely(tasks[NR_MEMSTALL] &&
 			tasks[NR_RUNNING] == tasks[NR_MEMSTALL_RUNNING]);
+	case PSI_MEM_MOVABLE_SOME:
+		return unlikely(tasks[NR_MEMSTALL_MOVABLE]);
+	case PSI_MEM_MOVABLE_FULL:
+		return unlikely(tasks[NR_MEMSTALL_MOVABLE] &&
+			tasks[NR_RUNNING] == tasks[NR_MEMSTALL_RUNNING]);
+	case PSI_MEM_UNMOVABLE_SOME:
+		return unlikely(tasks[NR_MEMSTALL_UNMOVABLE]);
+	case PSI_MEM_UNMOVABLE_FULL:
+		return unlikely(tasks[NR_MEMSTALL_UNMOVABLE] &&
+			tasks[NR_RUNNING] == tasks[NR_MEMSTALL_RUNNING]);
 	case PSI_CPU_SOME:
 		return unlikely(tasks[NR_RUNNING] > oncpu);
 	case PSI_CPU_FULL:
@@ -760,6 +770,14 @@ static void record_times(struct psi_group_cpu *groupc, u64 now)
 		groupc->times[PSI_MEM_SOME] += delta;
 		if (groupc->state_mask & (1 << PSI_MEM_FULL))
 			groupc->times[PSI_MEM_FULL] += delta;
+		if (groupc->state_mask & (1 << PSI_MEM_MOVABLE_SOME))
+			groupc->times[PSI_MEM_MOVABLE_SOME] += delta;
+		if (groupc->state_mask & (1 << PSI_MEM_MOVABLE_FULL))
+			groupc->times[PSI_MEM_MOVABLE_FULL] += delta;
+		if (groupc->state_mask & (1 << PSI_MEM_UNMOVABLE_SOME))
+			groupc->times[PSI_MEM_UNMOVABLE_SOME] += delta;
+		if (groupc->state_mask & (1 << PSI_MEM_UNMOVABLE_FULL))
+			groupc->times[PSI_MEM_UNMOVABLE_FULL] += delta;
 	}
 
 	if (groupc->state_mask & (1 << PSI_CPU_SOME)) {
@@ -1481,6 +1499,17 @@ static int psi_memory_show(struct seq_file *m, void *v)
 	return psi_show(m, &psi_system, PSI_MEM);
 }
 
+static int psi_memory_movable_show(struct seq_file *m, void *v)
+{
+	return psi_show(m, &psi_system, PSI_MEM_MOVABLE);
+}
+
+static int psi_memory_unmovable_show(struct seq_file *m, void *v)
+{
+	return psi_show(m, &psi_system, PSI_MEM_UNMOVABLE);
+}
+
+
 static int psi_cpu_show(struct seq_file *m, void *v)
 {
 	return psi_show(m, &psi_system, PSI_CPU);
@@ -1494,6 +1523,16 @@ static int psi_io_open(struct inode *inode, struct file *file)
 static int psi_memory_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, psi_memory_show, NULL);
+}
+
+static int psi_memory_movable_open(struct inode *inode, struct file *file)
+{
+    return single_open(file, psi_memory_movable_show, NULL);
+}
+
+static int psi_memory_unmovable_open(struct inode *inode, struct file *file)
+{
+    return single_open(file, psi_memory_unmovable_show, NULL);
 }
 
 static int psi_cpu_open(struct inode *inode, struct file *file)
@@ -1595,6 +1634,18 @@ static const struct proc_ops psi_memory_proc_ops = {
 	.proc_release	= psi_fop_release,
 };
 
+static const struct proc_ops psi_memory_movable_proc_ops = {
+	.proc_open = psi_memory_movable_open,
+	.proc_read = seq_read,
+	.proc_lseek = seq_lseek,
+};
+
+static const struct proc_ops psi_memory_unmovable_proc_ops = {
+	.proc_open = psi_memory_unmovable_open,
+	.proc_read = seq_read,
+	.proc_lseek = seq_lseek,
+};
+
 static const struct proc_ops psi_cpu_proc_ops = {
 	.proc_open	= psi_cpu_open,
 	.proc_read	= seq_read,
@@ -1637,6 +1688,8 @@ static int __init psi_proc_init(void)
 		proc_mkdir("pressure", NULL);
 		proc_create("pressure/io", 0666, NULL, &psi_io_proc_ops);
 		proc_create("pressure/memory", 0666, NULL, &psi_memory_proc_ops);
+		proc_create("pressure/memory_movable", 0666, NULL, &psi_memory_movable_proc_ops);
+		proc_create("pressure/memory_unmovable", 0666, NULL, &psi_memory_unmovable_proc_ops);
 		proc_create("pressure/cpu", 0666, NULL, &psi_cpu_proc_ops);
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
 		proc_create("pressure/irq", 0666, NULL, &psi_irq_proc_ops);
