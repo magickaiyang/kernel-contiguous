@@ -19,8 +19,8 @@ extern struct psi_group psi_system;
 
 void psi_init(void);
 
-void psi_memstall_enter(unsigned long *flags);
-void psi_memstall_leave(unsigned long *flags);
+void psi_memstall_enter(unsigned long *flags, enum psi_memstall_types type);
+void psi_memstall_leave(unsigned long *flags, enum psi_memstall_types type);
 
 int psi_show(struct seq_file *s, struct psi_group *group, enum psi_res res);
 struct psi_trigger *psi_trigger_create(struct psi_group *group,

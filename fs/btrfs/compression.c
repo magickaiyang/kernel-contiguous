@@ -397,7 +397,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		}
 
 		if (!*memstall && PageWorkingset(page)) {
-			psi_memstall_enter(pflags);
+			psi_memstall_enter(pflags, MEMSTALL_MOVABLE);
 			*memstall = 1;
 		}
 
@@ -536,7 +536,7 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio, int mirror_num)
 	btrfs_add_compressed_bio_pages(cb);
 
 	if (memstall)
-		psi_memstall_leave(&pflags);
+		psi_memstall_leave(&pflags, MEMSTALL_MOVABLE);
 
 	btrfs_submit_bio(&cb->bbio, mirror_num);
 	return;

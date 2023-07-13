@@ -880,8 +880,13 @@ static void psi_group_change(struct psi_group *group, int cpu,
 	 * task in a cgroup is in_memstall, the corresponding groupc
 	 * on that cpu is in PSI_MEM_FULL state.
 	 */
-	if (unlikely((state_mask & PSI_ONCPU) && cpu_curr(cpu)->in_memstall))
+	if (unlikely((state_mask & PSI_ONCPU) && cpu_curr(cpu)->in_memstall)) {
 		state_mask |= (1 << PSI_MEM_FULL);
+		if (cpu_curr(cpu)->in_memstall_movable)
+			state_mask |= (1 << PSI_MEM_MOVABLE_FULL);
+		if (cpu_curr(cpu)->in_memstall_unmovable)
+			state_mask |= (1 << PSI_MEM_UNMOVABLE_FULL);
+	}
 
 	record_times(groupc, now);
 
@@ -1052,11 +1057,12 @@ void psi_account_irqtime(struct task_struct *task, u32 delta)
 /**
  * psi_memstall_enter - mark the beginning of a memory stall section
  * @flags: flags to handle nested sections
+ * @type: which type of allocation
  *
  * Marks the calling task as being stalled due to a lack of memory,
  * such as waiting for a refault or performing reclaim.
  */
-void psi_memstall_enter(unsigned long *flags)
+void psi_memstall_enter(unsigned long *flags, enum psi_memstall_types type)
 {
 	struct rq_flags rf;
 	struct rq *rq;
@@ -1075,7 +1081,15 @@ void psi_memstall_enter(unsigned long *flags)
 	rq = this_rq_lock_irq(&rf);
 
 	current->in_memstall = 1;
-	psi_task_change(current, 0, TSK_MEMSTALL | TSK_MEMSTALL_RUNNING);
+
+	if (type == MEMSTALL_MOVABLE) {
+		current->in_memstall_movable = 1;
+		psi_task_change(current, 0, TSK_MEMSTALL | TSK_MEMSTALL_MOVABLE | TSK_MEMSTALL_RUNNING);
+	} else if(type == MEMSTALL_UNMOVABLE) {
+		current->in_memstall_unmovable = 1;
+		psi_task_change(current, 0, TSK_MEMSTALL | TSK_MEMSTALL_UNMOVABLE | TSK_MEMSTALL_RUNNING);
+	} else
+		psi_task_change(current, 0, TSK_MEMSTALL | TSK_MEMSTALL_RUNNING);
 
 	rq_unlock_irq(rq, &rf);
 }
@@ -1084,10 +1098,11 @@ EXPORT_SYMBOL_GPL(psi_memstall_enter);
 /**
  * psi_memstall_leave - mark the end of an memory stall section
  * @flags: flags to handle nested memdelay sections
+ * @type: which type of allocation
  *
  * Marks the calling task as no longer stalled due to lack of memory.
  */
-void psi_memstall_leave(unsigned long *flags)
+void psi_memstall_leave(unsigned long *flags, enum psi_memstall_types type)
 {
 	struct rq_flags rf;
 	struct rq *rq;
@@ -1105,7 +1120,15 @@ void psi_memstall_leave(unsigned long *flags)
 	rq = this_rq_lock_irq(&rf);
 
 	current->in_memstall = 0;
-	psi_task_change(current, TSK_MEMSTALL | TSK_MEMSTALL_RUNNING, 0);
+
+	if (type == MEMSTALL_MOVABLE) {
+		current->in_memstall_movable = 0;
+		psi_task_change(current, TSK_MEMSTALL | TSK_MEMSTALL_MOVABLE | TSK_MEMSTALL_RUNNING, 0);
+	} else if(type == MEMSTALL_UNMOVABLE) {
+		current->in_memstall_unmovable = 0;
+		psi_task_change(current, TSK_MEMSTALL | TSK_MEMSTALL_UNMOVABLE | TSK_MEMSTALL_RUNNING, 0);
+	} else
+		psi_task_change(current, TSK_MEMSTALL | TSK_MEMSTALL_RUNNING, 0);
 
 	rq_unlock_irq(rq, &rf);
 }

@@ -1741,14 +1741,14 @@ static void z_erofs_submit_queue(struct z_erofs_decompress_frontend *f,
 submit_bio_retry:
 				submit_bio(bio);
 				if (memstall) {
-					psi_memstall_leave(&pflags);
+					psi_memstall_leave(&pflags, MEMSTALL_MOVABLE);
 					memstall = 0;
 				}
 				bio = NULL;
 			}
 
 			if (unlikely(PageWorkingset(page)) && !memstall) {
-				psi_memstall_enter(&pflags);
+				psi_memstall_enter(&pflags, MEMSTALL_MOVABLE);
 				memstall = 1;
 			}
 
@@ -1782,7 +1782,7 @@ submit_bio_retry:
 	if (bio) {
 		submit_bio(bio);
 		if (memstall)
-			psi_memstall_leave(&pflags);
+			psi_memstall_leave(&pflags, MEMSTALL_MOVABLE);
 	}
 
 	/*

@@ -511,7 +511,7 @@ void swap_readpage(struct page *page, bool synchronous, struct swap_iocb **plug)
 	 */
 	if (workingset) {
 		delayacct_thrashing_start(&in_thrashing);
-		psi_memstall_enter(&pflags);
+		psi_memstall_enter(&pflags, MEMSTALL_MOVABLE);
 	}
 	delayacct_swapin_start();
 
@@ -528,7 +528,7 @@ void swap_readpage(struct page *page, bool synchronous, struct swap_iocb **plug)
 
 	if (workingset) {
 		delayacct_thrashing_end(&in_thrashing);
-		psi_memstall_leave(&pflags);
+		psi_memstall_leave(&pflags, MEMSTALL_MOVABLE);
 	}
 	delayacct_swapin_end();
 }

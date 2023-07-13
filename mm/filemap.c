@@ -1233,7 +1233,7 @@ static inline int folio_wait_bit_common(struct folio *folio, int bit_nr,
 	if (bit_nr == PG_locked &&
 	    !folio_test_uptodate(folio) && folio_test_workingset(folio)) {
 		delayacct_thrashing_start(&in_thrashing);
-		psi_memstall_enter(&pflags);
+		psi_memstall_enter(&pflags, MEMSTALL_MOVABLE);
 		thrashing = true;
 	}
 
@@ -1333,7 +1333,7 @@ repeat:
 
 	if (thrashing) {
 		delayacct_thrashing_end(&in_thrashing);
-		psi_memstall_leave(&pflags);
+		psi_memstall_leave(&pflags, MEMSTALL_MOVABLE);
 	}
 
 	/*
@@ -1388,7 +1388,7 @@ void migration_entry_wait_on_locked(swp_entry_t entry, pte_t *ptep,
 	q = folio_waitqueue(folio);
 	if (!folio_test_uptodate(folio) && folio_test_workingset(folio)) {
 		delayacct_thrashing_start(&in_thrashing);
-		psi_memstall_enter(&pflags);
+		psi_memstall_enter(&pflags, MEMSTALL_MOVABLE);
 		thrashing = true;
 	}
 
@@ -1435,7 +1435,7 @@ void migration_entry_wait_on_locked(swp_entry_t entry, pte_t *ptep,
 
 	if (thrashing) {
 		delayacct_thrashing_end(&in_thrashing);
-		psi_memstall_leave(&pflags);
+		psi_memstall_leave(&pflags, MEMSTALL_MOVABLE);
 	}
 }
 #endif
@@ -2423,10 +2423,10 @@ static int filemap_read_folio(struct file *file, filler_t filler,
 
 	/* Start the actual read. The read will unlock the page. */
 	if (unlikely(workingset))
-		psi_memstall_enter(&pflags);
+		psi_memstall_enter(&pflags, MEMSTALL_MOVABLE);
 	error = filler(file, folio);
 	if (unlikely(workingset))
-		psi_memstall_leave(&pflags);
+		psi_memstall_leave(&pflags, MEMSTALL_MOVABLE);
 	if (error)
 		return error;
 

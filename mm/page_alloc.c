@@ -3699,11 +3699,16 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 	struct page *page = NULL;
 	unsigned long pflags;
 	unsigned int noreclaim_flag;
+	bool is_movable = is_migrate_movable(gfp_migratetype(gfp_mask));
 
 	if (!order)
 		return NULL;
 
-	psi_memstall_enter(&pflags);
+	if (is_movable)
+		psi_memstall_enter(&pflags, MEMSTALL_MOVABLE);
+	else
+		psi_memstall_enter(&pflags, MEMSTALL_UNMOVABLE);
+
 	delayacct_compact_start();
 	noreclaim_flag = memalloc_noreclaim_save();
 
@@ -3711,7 +3716,12 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 								prio, &page);
 
 	memalloc_noreclaim_restore(noreclaim_flag);
-	psi_memstall_leave(&pflags);
+
+	if (is_movable)
+		psi_memstall_leave(&pflags, MEMSTALL_MOVABLE);
+	else
+		psi_memstall_leave(&pflags, MEMSTALL_UNMOVABLE);
+
 	delayacct_compact_end();
 
 	if (*compact_result == COMPACT_SKIPPED)
@@ -3986,8 +3996,13 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
 	struct page *page = NULL;
 	unsigned long pflags;
 	bool drained = false;
+	bool is_movable = is_migrate_movable(gfp_migratetype(gfp_mask));
 
-	psi_memstall_enter(&pflags);
+	if (is_movable)
+		psi_memstall_enter(&pflags, MEMSTALL_MOVABLE);
+	else
+		psi_memstall_enter(&pflags, MEMSTALL_UNMOVABLE);
+
 	*did_some_progress = __perform_reclaim(gfp_mask, order, ac);
 	if (unlikely(!(*did_some_progress)))
 		goto out;
@@ -4007,7 +4022,10 @@ retry:
 		goto retry;
 	}
 out:
-	psi_memstall_leave(&pflags);
+	if (is_movable)
+		psi_memstall_leave(&pflags, MEMSTALL_MOVABLE);
+	else
+		psi_memstall_leave(&pflags, MEMSTALL_UNMOVABLE);
 
 	return page;
 }

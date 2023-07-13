@@ -7347,7 +7347,7 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int highest_zoneidx)
 	};
 
 	set_task_reclaim_state(current, &sc.reclaim_state);
-	psi_memstall_enter(&pflags);
+	psi_memstall_enter(&pflags, MEMSTALL_UNKNOWN);
 	__fs_reclaim_acquire(_THIS_IP_);
 
 	count_vm_event(PAGEOUTRUN);
@@ -7528,7 +7528,7 @@ out:
 
 	snapshot_refaults(NULL, pgdat);
 	__fs_reclaim_release(_THIS_IP_);
-	psi_memstall_leave(&pflags);
+	psi_memstall_leave(&pflags, MEMSTALL_UNKNOWN);
 	set_task_reclaim_state(current, NULL);
 
 	/*
@@ -7962,12 +7962,18 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
 		.reclaim_idx = gfp_zone(gfp_mask),
 	};
 	unsigned long pflags;
+	bool is_movable = is_migrate_movable(gfp_migratetype(gfp_mask));
 
 	trace_mm_vmscan_node_reclaim_begin(pgdat->node_id, order,
 					   sc.gfp_mask);
 
 	cond_resched();
-	psi_memstall_enter(&pflags);
+
+	if (is_movable)
+		psi_memstall_enter(&pflags, MEMSTALL_MOVABLE);
+	else
+		psi_memstall_enter(&pflags, MEMSTALL_UNMOVABLE);
+
 	fs_reclaim_acquire(sc.gfp_mask);
 	/*
 	 * We need to be able to allocate from the reserves for RECLAIM_UNMAP
@@ -7989,7 +7995,11 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
 	set_task_reclaim_state(p, NULL);
 	memalloc_noreclaim_restore(noreclaim_flag);
 	fs_reclaim_release(sc.gfp_mask);
-	psi_memstall_leave(&pflags);
+
+	if (is_movable)
+		psi_memstall_leave(&pflags, MEMSTALL_MOVABLE);
+	else
+		psi_memstall_leave(&pflags, MEMSTALL_UNMOVABLE);
 
 	trace_mm_vmscan_node_reclaim_end(sc.nr_reclaimed);
 

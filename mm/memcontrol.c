@@ -2428,11 +2428,12 @@ static unsigned long reclaim_high(struct mem_cgroup *memcg,
 
 		memcg_memory_event(memcg, MEMCG_HIGH);
 
-		psi_memstall_enter(&pflags);
+		/* gfp_mask is always GFP_KERNEL. Can't tell allocation type */
+		psi_memstall_enter(&pflags, MEMSTALL_UNKNOWN);
 		nr_reclaimed += try_to_free_mem_cgroup_pages(memcg, nr_pages,
 							gfp_mask,
 							MEMCG_RECLAIM_MAY_SWAP);
-		psi_memstall_leave(&pflags);
+		psi_memstall_leave(&pflags, MEMSTALL_UNKNOWN);
 	} while ((memcg = parent_mem_cgroup(memcg)) &&
 		 !mem_cgroup_is_root(memcg));
 
@@ -2659,9 +2660,9 @@ retry_reclaim:
 	 * schedule_timeout_killable sets TASK_KILLABLE). This means we don't
 	 * need to account for any ill-begotten jiffies to pay them off later.
 	 */
-	psi_memstall_enter(&pflags);
+	psi_memstall_enter(&pflags, MEMSTALL_UNKNOWN);
 	schedule_timeout_killable(penalty_jiffies);
-	psi_memstall_leave(&pflags);
+	psi_memstall_leave(&pflags, MEMSTALL_UNKNOWN);
 
 out:
 	css_put(&memcg->css);
@@ -2680,6 +2681,7 @@ static int try_charge_memcg(struct mem_cgroup *memcg, gfp_t gfp_mask,
 	bool drained = false;
 	bool raised_max_event = false;
 	unsigned long pflags;
+	bool is_movable = is_migrate_movable(gfp_migratetype(gfp_mask));
 
 retry:
 	if (consume_stock(memcg, nr_pages))
@@ -2720,10 +2722,17 @@ retry:
 	memcg_memory_event(mem_over_limit, MEMCG_MAX);
 	raised_max_event = true;
 
-	psi_memstall_enter(&pflags);
+	if (is_movable)
+		psi_memstall_enter(&pflags, MEMSTALL_MOVABLE);
+	else
+		psi_memstall_enter(&pflags, MEMSTALL_UNMOVABLE);
+
 	nr_reclaimed = try_to_free_mem_cgroup_pages(mem_over_limit, nr_pages,
 						    gfp_mask, reclaim_options);
-	psi_memstall_leave(&pflags);
+	if (is_movable)
+		psi_memstall_leave(&pflags, MEMSTALL_MOVABLE);
+	else
+		psi_memstall_leave(&pflags, MEMSTALL_UNMOVABLE);
 
 	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
 		goto retry;
