@@ -3403,6 +3403,16 @@ retry:
 		struct page *page;
 		unsigned long mark;
 
+		/*
+		 * Disallows high-order movable allocations in other zones if
+		 * ZONE_MOVABLE is populated on this node.
+		 */
+		if (ac->highest_zoneidx >= ZONE_MOVABLE &&
+			order > 0 &&
+			zone_idx(zone) != ZONE_MOVABLE &&
+			populated_zone(&(zone->zone_pgdat->node_zones[ZONE_MOVABLE])))
+				continue;
+
 		if (cpusets_enabled() &&
 			(alloc_flags & ALLOC_CPUSET) &&
 			!__cpuset_zone_allowed(zone, gfp_mask))
