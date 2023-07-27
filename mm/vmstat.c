@@ -1325,6 +1325,9 @@ const char * const vmstat_text[] = {
 	"compact_daemon_migrate_scanned",
 	"compact_daemon_free_scanned",
 	"compact_cross_zone_migrated",
+	"compact_cross_zone_start",
+	"compact_cross_zone_migrate_scanned",
+	"compact_cross_zone_free_scanned",
 #endif
 
 #ifdef CONFIG_HUGETLB_PAGE
@@ -1692,7 +1695,9 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   "\n        spanned  %lu"
 		   "\n        present  %lu"
 		   "\n        managed  %lu"
-		   "\n        cma      %lu",
+		   "\n        cma      %lu"
+		   "\n        start    %lu"
+		   "\n        end      %lu",
 		   zone_page_state(zone, NR_FREE_PAGES),
 		   zone->watermark_boost,
 		   min_wmark_pages(zone),
@@ -1701,7 +1706,9 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
 		   zone->spanned_pages,
 		   zone->present_pages,
 		   zone_managed_pages(zone),
-		   zone_cma_pages(zone));
+		   zone_cma_pages(zone),
+		   zone->zone_start_pfn,
+		   zone_end_pfn(zone));
 
 	seq_printf(m,
 		   "\n        protection: (%ld",
