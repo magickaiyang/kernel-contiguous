@@ -2552,6 +2552,8 @@ out:
 
 	count_compact_events(COMPACTMIGRATE_SCANNED, cc->total_migrate_scanned);
 	count_compact_events(COMPACTFREE_SCANNED, cc->total_free_scanned);
+	if (dst_zone != cc->zone)
+		count_compact_events(COMPACT_CROSS_ZONE_MIGRATED, nr_succeeded);
 
 	trace_mm_compaction_end(cc, start_pfn, end_pfn, sync, ret);
 
