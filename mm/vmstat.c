@@ -1281,6 +1281,8 @@ const char * const vmstat_text[] = {
 	"pgscan_direct_throttle",
 	"pgscan_anon",
 	"pgscan_file",
+	"pgscan_by_movable",
+	"pgscan_by_unmovable",
 	"pgsteal_anon",
 	"pgsteal_file",
 

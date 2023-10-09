@@ -50,6 +50,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
 		PGSCAN_DIRECT_THROTTLE,
 		PGSCAN_ANON,
 		PGSCAN_FILE,
+		PGSCAN_MOVABLE,		/* number of pages scanned on behalf of a movable allocation */
+		PGSCAN_UNMOVABLE,
 		PGSTEAL_ANON,
 		PGSTEAL_FILE,
 #ifdef CONFIG_NUMA

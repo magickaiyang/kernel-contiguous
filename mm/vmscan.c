@@ -904,6 +904,12 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
 		cond_resched();
 	}
 
+	/* Arbitrarily consider 16 pages scanned */
+	if (is_migrate_movable(gfp_migratetype(shrinkctl->gfp_mask)))
+		count_vm_events(PGSCAN_MOVABLE, 16);
+	else
+		count_vm_events(PGSCAN_UNMOVABLE, 16);
+
 	/*
 	 * The deferred work is increased by any new work (delta) that wasn't
 	 * done, decreased by old deferred work that was done now.
@@ -2579,6 +2585,11 @@ static unsigned long shrink_inactive_list(unsigned long nr_to_scan,
 		__count_vm_events(item, nr_scanned);
 	__count_memcg_events(lruvec_memcg(lruvec), item, nr_scanned);
 	__count_vm_events(PGSCAN_ANON + file, nr_scanned);
+
+	if (is_migrate_movable(gfp_migratetype(sc->gfp_mask)))
+		__count_vm_events(PGSCAN_MOVABLE, nr_scanned);
+	else
+		__count_vm_events(PGSCAN_UNMOVABLE, nr_scanned);
 
 	spin_unlock_irq(&lruvec->lru_lock);
 
