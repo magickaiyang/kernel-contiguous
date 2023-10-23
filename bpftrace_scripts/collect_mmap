@@ -1,0 +1,6 @@
+// addr can be modified inside mmap_region, so we record during return
+
+kretfunc:vmlinux:mmap_region /pid == 456775/
+{
+	printf("%lx,%lx\n", args.addr, args.len);
+}

@@ -1,0 +1,5 @@
+// partial regions can be unmapped, so we really need the 4 printouts to post-process
+kfunc:vmlinux:unmap_single_vma /pid == 454269/
+{
+	printf("%lx,%lx,%lx,%lx\n", args.start_addr, args.end_addr, args.vma->vm_start, args.vma->vm_end);
+}
